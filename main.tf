@@ -6,9 +6,9 @@ terraform {
     }
   }
   backend "s3" {
-    bucket = "test-tf-bucket-cc"
-    key    = "terraform.tfstate"
-    region = "eu-central-1"
+    bucket         = "test-tf-bucket-cc"
+    key            = "terraform.tfstate"
+    region         = "eu-central-1"
     dynamodb_table = "StateLocking"
   }
 }
@@ -30,7 +30,7 @@ module "vpc" {
   name = var.vpc_name
   cidr = var.vpc_cidr_block
 
-  azs             = var.aws_azs
+  azs            = var.aws_azs
   public_subnets = slice(var.public_subnet_cidr_blocks, 0, var.public_subnet_count)
 
   enable_nat_gateway = false
@@ -64,25 +64,73 @@ resource "aws_security_group" "wordpress_instance_SG" {
 
   ingress {
     description = "Allow SSH traffic"
-    from_port        = 22
-    to_port          = 22
-    protocol         = "tcp"
-    cidr_blocks      = ["${chomp(data.http.myip.body)}/32"]
+    from_port   = 22
+    to_port     = 22
+    protocol    = "tcp"
+    cidr_blocks = ["${chomp(data.http.myip.body)}/32"]
   }
 
   ingress {
     description = "Allow HTTP traffic"
-    from_port        = 80
-    to_port          = 80
-    protocol         = "tcp"
-    cidr_blocks      = ["0.0.0.0/0"]
+    from_port   = 80
+    to_port     = 80
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
   }
 
   egress {
-    from_port        = 0
-    to_port          = 0
-    protocol         = "-1"
-    cidr_blocks      = ["0.0.0.0/0"]
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  tags = var.resource_tags
+}
+
+# Create RDS subnet group
+resource "aws_db_subnet_group" "wordpress_rds" {
+  name       = "main"
+  subnet_ids = [module.vpc.public_subnets[1], module.vpc.public_subnets[0]]
+
+  tags = {
+    Name = "My DB subnet group"
+  }
+}
+
+# Create RDS for WordPress
+resource "aws_db_instance" "wordpress_rds" {
+  allocated_storage     = var.wordpress_storage_size
+  max_allocated_storage = 50
+  engine                = "mysql"
+  engine_version        = "5.7"
+  db_subnet_group_name  = aws_db_subnet_group.wordpress_rds.id
+  vpc_security_group_ids= [aws_security_group.wordpress_db_instance_SG.id]
+  instance_class        = var.wordpress_db_details.instance_type
+  name                  = var.wordpress_db_details.db_name
+  username              = var.wordpress_db_details.username
+  password              = var.wordpress_db_details.password
+  skip_final_snapshot   = true
+}
+
+resource "aws_security_group" "wordpress_db_instance_SG" {
+  name        = "SG for WordPress_RDS instance"
+  description = "Allow SSH and HTTP traffic"
+  vpc_id      = module.vpc.vpc_id
+
+  ingress {
+    description = "Allow database connection"
+    from_port   = 3306
+    to_port     = 3306
+    protocol    = "tcp"
+    cidr_blocks = [var.vpc_cidr_block]
+  }
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
   }
 
   tags = var.resource_tags

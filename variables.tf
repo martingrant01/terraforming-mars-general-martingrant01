@@ -68,7 +68,24 @@ variable "public_subnet_cidr_blocks" {
 
 variable "ssh_key_WP" {
   description = "SSH key for WordPress EC2"
-  type = string
-  default = "testing-terraform-Martin"	
+  type        = string
+  default     = "testing-terraform-Martin"
+}
+
+variable "wordpress_db_details" {
+  description = "All necessary configuration details for RDS of WordPress"
+  type        = map(string)
+  default = {
+    db_name       = "wordpress",
+    username      = "admin",
+    password      = "wordpress"
+    instance_type = "db.t2.micro"
+  }
+}
+
+variable "wordpress_storage_size" {
+  description = "Size of RDS storage"
+  type        = number
+  default     = 10
 }
 
