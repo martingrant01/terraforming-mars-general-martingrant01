@@ -46,7 +46,7 @@ module "ec2_instance" {
 
   name = "wordpress-instance"
 
-  ami                    = "ami-042ad9eec03638628" # Ubuntu Server 18.04 LTS
+  ami                    = "ami-05d34d340fb1d89e5" # Amazon Linux 2 AMI
   instance_type          = "t2.micro"
   key_name               = var.ssh_key_WP
   monitoring             = true
