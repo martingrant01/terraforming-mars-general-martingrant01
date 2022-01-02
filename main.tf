@@ -100,17 +100,17 @@ resource "aws_db_subnet_group" "wordpress_rds" {
 
 # Create RDS for WordPress
 resource "aws_db_instance" "wordpress_rds" {
-  allocated_storage     = var.wordpress_storage_size
-  max_allocated_storage = 50
-  engine                = "mysql"
-  engine_version        = "5.7"
-  db_subnet_group_name  = aws_db_subnet_group.wordpress_rds.id
-  vpc_security_group_ids= [aws_security_group.wordpress_db_instance_SG.id]
-  instance_class        = var.wordpress_db_details.instance_type
-  name                  = var.wordpress_db_details.db_name
-  username              = var.wordpress_db_details.username
-  password              = var.wordpress_db_details.password
-  skip_final_snapshot   = true
+  allocated_storage      = var.wordpress_storage_size
+  max_allocated_storage  = 50
+  engine                 = "mysql"
+  engine_version         = "5.7"
+  db_subnet_group_name   = aws_db_subnet_group.wordpress_rds.id
+  vpc_security_group_ids = [aws_security_group.wordpress_db_instance_SG.id]
+  instance_class         = var.wordpress_db_details.instance_type
+  name                   = var.wordpress_db_details.db_name
+  username               = var.wordpress_db_details.username
+  password               = var.wordpress_db_details.password
+  skip_final_snapshot    = true
 }
 
 resource "aws_security_group" "wordpress_db_instance_SG" {
@@ -134,4 +134,82 @@ resource "aws_security_group" "wordpress_db_instance_SG" {
   }
 
   tags = var.resource_tags
+}
+
+# Create S3 bucket for WordPress media files
+resource "aws_s3_bucket" "wordpress_media" {
+  bucket = "wordpress-media-cc"
+  acl    = "public-read"
+
+  versioning {
+    enabled = true
+  }
+}
+
+# Create WordPress user
+resource "aws_iam_user" "wp-s3-user" {
+  name = "wp-s3-user"
+}
+
+# Create access key for WordPress user
+resource "aws_iam_access_key" "wp-s3-user-access-key" {
+  user = aws_iam_user.wp-s3-user.name
+}
+
+# Create IAM policy for Wordpress to access S3 bucket
+resource "aws_iam_policy" "wp-s3-policy" {
+  name = "wp-s3-policy"
+
+  policy = jsonencode({
+    "Version" : "2012-10-17",
+
+    "Statement" : [
+
+      {
+
+        "Sid" : "WordPressS3Policy",
+
+        "Effect" : "Allow",
+
+        "Action" : [
+
+          "s3:PutObject",
+
+          "s3:GetObjectAcl",
+
+          "s3:GetObject",
+
+          "s3:PutBucketAcl",
+
+          "s3:ListBucket",
+
+          "s3:DeleteObject",
+
+          "s3:GetBucketAcl",
+
+          "s3:GetBucketLocation",
+
+          "s3:PutObjectAcl"
+
+        ],
+
+        "Resource" : [
+
+          "arn:aws:s3:::wordpress-media-cc",
+
+          "arn:aws:s3:::wordpress-media-cc/*"
+
+        ]
+
+      }
+
+    ]
+  })
+}
+
+# Attach wp-s3-policy to wp-s3-user
+resource "aws_iam_policy_attachment" "wp-s3-policy-attachment" {
+  name       = "wp-s3-policy-attachment"
+  users      = [aws_iam_user.wp-s3-user.name]
+  policy_arn = aws_iam_policy.wp-s3-policy.arn
 }
