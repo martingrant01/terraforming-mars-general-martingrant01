@@ -35,3 +35,6 @@ override.tf.json
 terraform.rc
 
 .terraform.lock.hcl
+
+# SSH key for EC2
+testing-terraform-Martin.cer
